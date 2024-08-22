@@ -1,3 +1,8 @@
+//! Detect instruction sets (ISA extensions) by trap-and-return procedure
+//!
+//! First, it disables all S-level interrupts. Remaining traps in RISC-V core
+//! are all exceptions.
+//! Then, it filters out illegal instruction from exceptions.
 //! ref: https://github.com/luojia65/zihai/blob/main/zihai/src/detect.rs
 
 use core::arch::asm;

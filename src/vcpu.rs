@@ -1,21 +1,20 @@
-use axerrno::AxResult;
 use core::arch::global_asm;
-use core::marker::PhantomData;
 use core::mem::size_of;
-use memoffset::offset_of;
-use tock_registers::LocalRegisterCopy;
-// use alloc::sync::Arc;
-use riscv::register::{htinst, htval, scause, sstatus, stval};
 
-use super::csrs::{traps, RiscvCsrTrait, CSR};
-use super::sbi::{BaseFunction, PmuFunction, RemoteFenceFunction, SbiMessage};
-use crate::AxVMHal;
+use memoffset::offset_of;
+use riscv::register::{htinst, htval, scause, sstatus, stval};
+use sbi_rt::{pmu_counter_get_info, pmu_counter_stop};
+use tock_registers::LocalRegisterCopy;
+
 use axaddrspace::{GuestPhysAddr, HostPhysAddr, MappingFlags};
+use axerrno::AxResult;
 use axvcpu::AxVCpuExitReason;
 
 use super::csrs::defs::hstatus;
+use super::csrs::{traps, RiscvCsrTrait, CSR};
+use super::sbi::{BaseFunction, PmuFunction, RemoteFenceFunction, SbiMessage};
+
 use super::regs::{GeneralPurposeRegisters, GprIndex};
-use sbi_rt::{pmu_counter_get_info, pmu_counter_stop};
 
 /// Hypervisor GPR and CSR state which must be saved/restored when entering/exiting virtualization.
 #[derive(Default)]
@@ -200,29 +199,17 @@ extern "C" {
     fn _run_guest(state: *mut VmCpuRegisters);
 }
 
-pub enum VmCpuStatus {
-    /// The vCPU is not powered on.
-    PoweredOff,
-    /// The vCPU is available to be run.
-    Runnable,
-    /// The vCPU has benn claimed exclusively for running on a (physical) CPU.
-    Running,
-}
-
 /// The architecture dependent configuration of a `AxArchVCpu`.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct VCpuConfig {}
 
 #[derive(Default)]
 /// A virtual CPU within a guest
-pub struct VCpu<H: AxVMHal> {
+pub struct RISCVVCpu {
     regs: VmCpuRegisters,
-    // gpt: G,
-    // pub guest: Arc<Guest>,
-    marker: PhantomData<H>,
 }
 
-impl<H: AxVMHal> axvcpu::AxArchVCpu for VCpu<H> {
+impl axvcpu::AxArchVCpu for RISCVVCpu {
     type CreateConfig = ();
 
     type SetupConfig = ();
@@ -247,10 +234,7 @@ impl<H: AxVMHal> axvcpu::AxArchVCpu for VCpu<H> {
         regs.guest_regs.gprs.set_reg(GprIndex::A0, 0);
         regs.guest_regs.gprs.set_reg(GprIndex::A1, 0x9000_0000);
 
-        Ok(Self {
-            regs: regs,
-            marker: core::marker::PhantomData,
-        })
+        Ok(Self { regs })
     }
 
     fn setup(&mut self, _config: Self::SetupConfig) -> AxResult {
@@ -296,7 +280,7 @@ impl<H: AxVMHal> axvcpu::AxArchVCpu for VCpu<H> {
     }
 }
 
-impl<H: AxVMHal> VCpu<H> {
+impl RISCVVCpu {
     /// Gets one of the vCPU's general purpose registers.
     pub fn get_gpr(&self, index: GprIndex) -> usize {
         self.regs.guest_regs.gprs.reg(index)
@@ -318,7 +302,7 @@ impl<H: AxVMHal> VCpu<H> {
     }
 }
 
-impl<H: AxVMHal> VCpu<H> {
+impl RISCVVCpu {
     fn vmexit_handler(&mut self) -> AxResult<AxVCpuExitReason> {
         self.regs.trap_csrs.scause = scause::read().bits();
         self.regs.trap_csrs.stval = stval::read();
@@ -493,23 +477,5 @@ impl<H: AxVMHal> VCpu<H> {
             }
         }
         Ok(())
-    }
-}
-
-// Private methods implements
-impl<H: AxVMHal> VCpu<H> {
-    /// Delivers the given exception to the vCPU, setting its register state
-    /// to handle the trap the next time it is run.
-    fn inject_exception(&mut self) {
-        unsafe {
-            core::arch::asm!(
-                "csrw vsepc, {hyp_sepc}",
-                "csrw vscause, {hyp_scause}",
-                "csrr {guest_sepc}, vstvec",
-                hyp_sepc = in(reg) self.regs.guest_regs.sepc,
-                hyp_scause = in(reg) self.regs.trap_csrs.scause,
-                guest_sepc = out(reg) self.regs.guest_regs.sepc,
-            );
-        }
     }
 }

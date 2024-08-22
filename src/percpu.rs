@@ -1,38 +1,19 @@
-pub mod csrs;
-mod detect;
-mod device_list;
-mod devices;
-mod regs;
-pub mod sbi;
-mod vcpu;
-mod vm_pages;
-mod vmexit;
+use axerrno::{AxError, AxResult};
 
-use self::csrs::{traps, RiscvCsrTrait, CSR};
-pub(crate) use self::detect::detect_h_extension as has_hardware_support;
-pub use self::device_list::DeviceList as AxArchDeviceList;
-pub use self::vcpu::VCpu as AxArchVCpuImpl;
-// pub use self::vcpu::VCpuConfig as AxArchVCpuConfig;
-pub use self::PerCpu as AxVMArchPerCpuImpl;
-use crate::percpu::AxVMArchPerCpu;
-use axerrno::AxError;
-use axerrno::AxResult;
+use axvcpu::AxArchPerCpu;
 
-use crate::AxVMHal;
+use crate::csrs::{traps, RiscvCsrTrait, CSR};
+use crate::has_hardware_support;
 
-pub struct PerCpu<H: AxVMHal> {
-    _marker: core::marker::PhantomData<H>,
-}
+pub struct RISCVPerCpu {}
 
-impl<H: AxVMHal> AxVMArchPerCpu for PerCpu<H> {
+impl AxArchPerCpu for RISCVPerCpu {
     fn new(_cpu_id: usize) -> AxResult<Self> {
         unsafe {
             setup_csrs();
         }
 
-        Ok(Self {
-            _marker: core::marker::PhantomData,
-        })
+        Ok(Self {})
     }
 
     fn is_enabled(&self) -> bool {
