@@ -133,8 +133,7 @@ impl<H: AxVCpuHal> axvcpu::AxArchVCpu for RISCVVCpu<H> {
             }
             _ => {
                 warn!(
-                    "RISCVVCpu: Unsupported general purpose register index: {}",
-                    index
+                    "RISCVVCpu: Unsupported general purpose register index: {index}",
                 );
             }
         }
@@ -213,8 +212,7 @@ impl<H: AxVCpuHal> RISCVVCpu<H> {
                         }
                         _ => {
                             warn!(
-                                "Unsupported SBI legacy extension id {:#x} function id {:#x}",
-                                extension_id, function_id
+                                "Unsupported SBI legacy extension id {extension_id:#x} function id {function_id:#x}",
                             );
                         }
                     },
