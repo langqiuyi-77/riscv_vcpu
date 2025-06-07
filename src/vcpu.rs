@@ -132,9 +132,7 @@ impl<H: AxVCpuHal> axvcpu::AxArchVCpu for RISCVVCpu<H> {
                 self.set_gpr_from_gpr_index(GprIndex::from_raw(index as u32 + 10).unwrap(), val);
             }
             _ => {
-                warn!(
-                    "RISCVVCpu: Unsupported general purpose register index: {index}",
-                );
+                warn!("RISCVVCpu: Unsupported general purpose register index: {index}");
             }
         }
     }
